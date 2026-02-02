@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@shared/routes";
 import { z } from "zod";
-import { useToast } from "@/components/ui/use-toast";
+import { useToast } from "@/hooks/use-toast";
 
 type LoginInput = z.infer<typeof api.auth.login.input>;
 type RegisterInput = z.infer<typeof api.auth.register.input>;
