@@ -1,15 +1,15 @@
 ## Packages
-@hello-pangea/dnd | Drag and drop library for Kanban board
-date-fns | Date formatting and manipulation
-framer-motion | Smooth animations for drag and drop and transitions
-clsx | Utility for conditional classes
-tailwind-merge | Utility for merging tailwind classes
+zod | Schema validation
+react-hook-form | Form handling
+@hookform/resolvers | Zod resolver for react-hook-form
+date-fns | Date formatting
+@dnd-kit/core | Drag and drop core
+@dnd-kit/sortable | Sortable drag and drop
+@dnd-kit/utilities | DnD utilities
+lucide-react | Icons
+clsx | Class name utility
+tailwind-merge | Class name utility
 
 ## Notes
-Tailwind Config - extend fontFamily:
-fontFamily: {
-  sans: ["Inter", "sans-serif"],
-  display: ["Cal Sans", "Inter", "sans-serif"],
-}
-Colors should use HSL variables for theming support.
-Authentication uses /api/login and /api/logout endpoints.
+Authentication switched to local credentials (username/password).
+Added Estimated Time (ET) field to tasks.

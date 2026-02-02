@@ -47,6 +47,7 @@ export const tasks = pgTable("tasks", {
   description: text("description"),
   priority: text("priority", { enum: ["low", "medium", "high"] }).default("medium"),
   dueDate: timestamp("due_date"),
+  estimatedTime: integer("estimated_time"), // ET in minutes
   order: integer("order").notNull().default(0),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),

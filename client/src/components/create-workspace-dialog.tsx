@@ -1,39 +1,44 @@
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { insertWorkspaceSchema, type InsertWorkspace } from "@shared/schema";
+import { useCreateWorkspace } from "@/hooks/use-workspaces";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Button } from "@/components/ui/button";
-import { useCreateWorkspace } from "@/hooks/use-workspaces";
-import { insertWorkspaceSchema } from "@shared/schema";
-import { Loader2 } from "lucide-react";
 
 interface CreateWorkspaceDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
 
-const formSchema = insertWorkspaceSchema.pick({
-  name: true,
-  description: true,
-});
-
-type FormValues = z.infer<typeof formSchema>;
-
 export function CreateWorkspaceDialog({ open, onOpenChange }: CreateWorkspaceDialogProps) {
   const { mutate: createWorkspace, isPending } = useCreateWorkspace();
-
-  const form = useForm<FormValues>({
-    resolver: zodResolver(formSchema),
+  
+  const form = useForm<InsertWorkspace>({
+    resolver: zodResolver(insertWorkspaceSchema.omit({ ownerId: true })),
     defaultValues: {
       name: "",
       description: "",
     },
   });
 
-  const onSubmit = (data: FormValues) => {
+  const onSubmit = (data: InsertWorkspace) => {
     createWorkspace(data, {
       onSuccess: () => {
         form.reset();
@@ -44,10 +49,14 @@ export function CreateWorkspaceDialog({ open, onOpenChange }: CreateWorkspaceDia
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
+      <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
-          <DialogTitle>Create New Workspace</DialogTitle>
+          <DialogTitle>Create Workspace</DialogTitle>
+          <DialogDescription>
+            Create a new workspace to organize your projects and team.
+          </DialogDescription>
         </DialogHeader>
+
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
             <FormField
@@ -55,24 +64,25 @@ export function CreateWorkspaceDialog({ open, onOpenChange }: CreateWorkspaceDia
               name="name"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Workspace Name</FormLabel>
+                  <FormLabel>Name</FormLabel>
                   <FormControl>
-                    <Input placeholder="Engineering Team" {...field} />
+                    <Input placeholder="e.g. Acme Corp" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
             />
-            
+
             <FormField
               control={form.control}
               name="description"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Description (Optional)</FormLabel>
+                  <FormLabel>Description</FormLabel>
                   <FormControl>
                     <Textarea 
-                      placeholder="Space for engineering projects..." 
+                      placeholder="What is this workspace for?" 
+                      className="resize-none" 
                       {...field} 
                       value={field.value || ""} 
                     />
@@ -82,15 +92,14 @@ export function CreateWorkspaceDialog({ open, onOpenChange }: CreateWorkspaceDia
               )}
             />
 
-            <div className="flex justify-end gap-2 mt-4">
-              <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
                 Cancel
               </Button>
               <Button type="submit" disabled={isPending}>
-                {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Create Workspace
+                {isPending ? "Creating..." : "Create Workspace"}
               </Button>
-            </div>
+            </DialogFooter>
           </form>
         </Form>
       </DialogContent>

@@ -48,10 +48,6 @@ export interface IStorage {
 export class DatabaseStorage implements IStorage {
   // Workspaces
   async getWorkspaces(userId: string): Promise<Workspace[]> {
-    // For now, return all workspaces owned by the user OR where they are a member
-    // This is a simplification. Ideally, we join with workspaceMembers.
-    // Let's implement a proper join if possible, or just owner for MVP if simpler.
-    // MVP: Return workspaces where ownerId = userId
     return await db.select().from(workspaces).where(eq(workspaces.ownerId, userId));
   }
 

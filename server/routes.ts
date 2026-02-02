@@ -23,7 +23,13 @@ export async function registerRoutes(
 
   // Workspaces
   app.get(api.workspaces.list.path, requireAuth, async (req: any, res) => {
-    const userId = req.user!.claims.sub;
+    // Check if user has an ID (local auth user) or claims (replit auth user - legacy)
+    const userId = req.user.id || req.user.claims?.sub;
+    
+    if (!userId) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
     let workspaces = await storage.getWorkspaces(userId);
     
     // Auto-seed if no workspaces exist for this user
@@ -49,7 +55,8 @@ export async function registerRoutes(
         description: "Try dragging this task to another column.", 
         columnId: todoCol.id, 
         priority: "high",
-        order: 0
+        order: 0,
+        estimatedTime: 30 // 30 mins
       });
       
       await storage.createTask({ 
@@ -57,7 +64,8 @@ export async function registerRoutes(
         description: "Click on a task to see details.", 
         columnId: todoCol.id, 
         priority: "medium",
-        order: 1
+        order: 1,
+        estimatedTime: 60 // 1 hour
       });
 
       workspaces = [workspace];
@@ -69,9 +77,10 @@ export async function registerRoutes(
   app.post(api.workspaces.create.path, requireAuth, async (req: any, res) => {
     try {
       const input = api.workspaces.create.input.parse(req.body);
+      const userId = req.user.id || req.user.claims?.sub;
       const workspace = await storage.createWorkspace({
         ...input,
-        ownerId: req.user!.claims.sub
+        ownerId: userId
       });
       res.status(201).json(workspace);
     } catch (err) {

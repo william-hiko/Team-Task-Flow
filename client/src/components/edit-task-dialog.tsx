@@ -1,11 +1,10 @@
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { insertTaskSchema, type InsertTask } from "@shared/schema";
-import { useCreateTask } from "@/hooks/use-kanban";
+import { insertTaskSchema, type Task, type InsertTask } from "@shared/schema";
+import { useUpdateTask, useDeleteTask } from "@/hooks/use-kanban";
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -28,58 +27,77 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Trash2 } from "lucide-react";
+import { useEffect } from "react";
 
-interface CreateTaskDialogProps {
+interface EditTaskDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  columnId: number;
+  task: Task | null;
   projectId: number;
 }
 
-export function CreateTaskDialog({ open, onOpenChange, columnId, projectId }: CreateTaskDialogProps) {
-  const { mutate: createTask, isPending } = useCreateTask();
+export function EditTaskDialog({ open, onOpenChange, task, projectId }: EditTaskDialogProps) {
+  const { mutate: updateTask, isPending: isUpdating } = useUpdateTask();
+  const { mutate: deleteTask, isPending: isDeleting } = useDeleteTask();
 
-  // Helper for Zod validation with coerced number
-  const formSchema = insertTaskSchema.omit({ columnId: true }).extend({
-    estimatedTime:  zodResolver(insertTaskSchema).shape.estimatedTime // Inherit optional number
-  });
-  
-  const form = useForm<Omit<InsertTask, "columnId">>({
-    resolver: zodResolver(insertTaskSchema.omit({ columnId: true })),
+  const form = useForm<InsertTask>({
+    resolver: zodResolver(insertTaskSchema.omit({ columnId: true, order: true })), // Partial updates
     defaultValues: {
       title: "",
       description: "",
       priority: "medium",
-      order: 0,
+      estimatedTime: undefined,
     },
   });
 
-  const onSubmit = (data: Omit<InsertTask, "columnId">) => {
-    // Ensure estimatedTime is number or null/undefined
-    const formattedData = {
-      ...data,
-      estimatedTime: data.estimatedTime ? Number(data.estimatedTime) : undefined,
-    };
+  useEffect(() => {
+    if (task) {
+      form.reset({
+        title: task.title,
+        description: task.description || "",
+        priority: task.priority || "medium",
+        estimatedTime: task.estimatedTime || undefined,
+      });
+    }
+  }, [task, form]);
 
-    createTask(
-      { ...formattedData, columnId, projectId },
+  const onSubmit = (data: InsertTask) => {
+    if (!task) return;
+    updateTask(
+      { id: task.id, projectId, ...data },
       {
         onSuccess: () => {
-          form.reset();
           onOpenChange(false);
         },
       }
     );
   };
 
+  const handleDelete = () => {
+    if (!task) return;
+    if (confirm("Are you sure you want to delete this task?")) {
+      deleteTask(
+        { id: task.id, projectId },
+        {
+          onSuccess: () => {
+            onOpenChange(false);
+          },
+        }
+      );
+    }
+  };
+
+  if (!task) return null;
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[500px]">
+      <DialogContent className="sm:max-w-[600px]">
         <DialogHeader>
-          <DialogTitle>Create Task</DialogTitle>
-          <DialogDescription>
-            Add a new task to your board.
-          </DialogDescription>
+          <div className="flex items-center justify-between pr-8">
+            <DialogTitle>Edit Task</DialogTitle>
+            <span className="text-xs font-mono text-muted-foreground">TASK-{task.id}</span>
+          </div>
         </DialogHeader>
 
         <Form {...form}>
@@ -91,7 +109,7 @@ export function CreateTaskDialog({ open, onOpenChange, columnId, projectId }: Cr
                 <FormItem>
                   <FormLabel>Title</FormLabel>
                   <FormControl>
-                    <Input placeholder="Task title" {...field} />
+                    <Input {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -131,10 +149,9 @@ export function CreateTaskDialog({ open, onOpenChange, columnId, projectId }: Cr
                     <FormControl>
                       <Input 
                         type="number" 
-                        placeholder="e.g. 30" 
                         {...field} 
                         value={field.value || ""}
-                        onChange={(e) => field.onChange(e.target.valueAsNumber)} 
+                        onChange={(e) => field.onChange(e.target.valueAsNumber || null)} 
                       />
                     </FormControl>
                     <FormMessage />
@@ -151,8 +168,7 @@ export function CreateTaskDialog({ open, onOpenChange, columnId, projectId }: Cr
                   <FormLabel>Description</FormLabel>
                   <FormControl>
                     <Textarea 
-                      placeholder="Add details..." 
-                      className="min-h-[100px] resize-none" 
+                      className="min-h-[150px] resize-none" 
                       {...field} 
                       value={field.value || ""}
                     />
@@ -162,13 +178,24 @@ export function CreateTaskDialog({ open, onOpenChange, columnId, projectId }: Cr
               )}
             />
 
-            <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-                Cancel
+            <DialogFooter className="flex justify-between items-center sm:justify-between w-full">
+              <Button 
+                type="button" 
+                variant="destructive" 
+                size="icon" 
+                onClick={handleDelete}
+                disabled={isDeleting}
+              >
+                <Trash2 className="h-4 w-4" />
               </Button>
-              <Button type="submit" disabled={isPending}>
-                {isPending ? "Creating..." : "Create Task"}
-              </Button>
+              <div className="flex gap-2">
+                <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+                  Cancel
+                </Button>
+                <Button type="submit" disabled={isUpdating}>
+                  {isUpdating ? "Saving..." : "Save Changes"}
+                </Button>
+              </div>
             </DialogFooter>
           </form>
         </Form>

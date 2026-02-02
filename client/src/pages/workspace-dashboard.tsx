@@ -1,144 +1,194 @@
 import { useParams, Link } from "wouter";
 import { useWorkspace } from "@/hooks/use-workspaces";
-import { useProjects, useCreateProject } from "@/hooks/use-projects";
+import { useProjects } from "@/hooks/use-projects";
 import { Button } from "@/components/ui/button";
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
-import { Plus, FolderKanban, ArrowRight, Loader2 } from "lucide-react";
-import { format } from "date-fns";
-import { useState } from "react";
+import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Card,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Plus, KanbanSquare, ArrowRight, Settings } from "lucide-react";
+import { useState } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { insertProjectSchema, type InsertProject } from "@shared/schema";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
 
 export default function WorkspaceDashboard() {
   const { id } = useParams();
   const workspaceId = Number(id);
-  
   const { data: workspace, isLoading: wsLoading } = useWorkspace(workspaceId);
-  const { data: projects, isLoading: projectsLoading } = useProjects(workspaceId);
-  const { mutate: createProject, isPending: isCreating } = useCreateProject();
-  
+  const { data: projects, isLoading: projectsLoading, createProject, isCreating } = useProjects(workspaceId);
   const [createOpen, setCreateOpen] = useState(false);
-  const [newProject, setNewProject] = useState({ name: "", description: "" });
 
-  const handleCreate = (e: React.FormEvent) => {
-    e.preventDefault();
+  const form = useForm<InsertProject>({
+    resolver: zodResolver(insertProjectSchema.omit({ workspaceId: true })),
+    defaultValues: {
+      name: "",
+      description: "",
+    },
+  });
+
+  const onSubmit = (data: InsertProject) => {
     createProject(
-      { ...newProject, workspaceId },
+      { ...data, workspaceId },
       {
         onSuccess: () => {
+          form.reset();
           setCreateOpen(false);
-          setNewProject({ name: "", description: "" });
-        }
+        },
       }
     );
   };
 
-  if (wsLoading || projectsLoading) {
+  if (wsLoading) {
     return (
-      <div className="flex h-full items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      <div className="p-8 space-y-8">
+        <Skeleton className="h-12 w-1/3" />
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <Skeleton className="h-40" />
+          <Skeleton className="h-40" />
+        </div>
       </div>
     );
   }
 
-  if (!workspace) return <div>Workspace not found</div>;
+  if (!workspace) return <div className="p-8">Workspace not found</div>;
 
   return (
-    <div className="p-8 max-w-7xl mx-auto w-full">
-      <div className="flex items-center justify-between mb-8">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight mb-2">{workspace.name}</h1>
-          <p className="text-muted-foreground">{workspace.description || "No description provided."}</p>
-        </div>
-        
-        <Dialog open={createOpen} onOpenChange={setCreateOpen}>
-          <DialogTrigger asChild>
-            <Button>
-              <Plus className="mr-2 h-4 w-4" />
-              New Project
-            </Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Create Project</DialogTitle>
-            </DialogHeader>
-            <form onSubmit={handleCreate} className="space-y-4 mt-4">
-              <div className="space-y-2">
-                <Label htmlFor="name">Project Name</Label>
-                <Input 
-                  id="name" 
-                  value={newProject.name} 
-                  onChange={(e) => setNewProject(prev => ({ ...prev, name: e.target.value }))}
-                  placeholder="Website Redesign"
-                  required
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="desc">Description</Label>
-                <Textarea 
-                  id="desc" 
-                  value={newProject.description}
-                  onChange={(e) => setNewProject(prev => ({ ...prev, description: e.target.value }))}
-                  placeholder="Brief description..."
-                />
-              </div>
-              <div className="flex justify-end gap-2 pt-2">
-                <Button type="button" variant="ghost" onClick={() => setCreateOpen(false)}>Cancel</Button>
-                <Button type="submit" disabled={isCreating}>
-                  {isCreating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                  Create Project
-                </Button>
-              </div>
-            </form>
-          </DialogContent>
-        </Dialog>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {projects?.map((project) => (
-          <Link key={project.id} href={`/workspace/${workspaceId}/project/${project.id}`}>
-            <Card className="group cursor-pointer hover:shadow-lg transition-all hover:border-primary/50 h-full flex flex-col">
-              <CardHeader>
-                <div className="flex justify-between items-start">
-                  <div className="p-2 bg-primary/10 rounded-lg text-primary mb-2 group-hover:scale-110 transition-transform">
-                    <FolderKanban className="w-6 h-6" />
-                  </div>
-                  <ArrowRight className="w-4 h-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity -translate-x-2 group-hover:translate-x-0" />
-                </div>
-                <CardTitle>{project.name}</CardTitle>
-                <CardDescription className="line-clamp-2">
-                  {project.description || "No description"}
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="mt-auto pt-0">
-                <div className="text-xs text-muted-foreground pt-4 border-t w-full flex justify-between items-center">
-                  <span>Created {format(new Date(project.createdAt!), "MMM d, yyyy")}</span>
-                </div>
-              </CardContent>
-            </Card>
-          </Link>
-        ))}
-
-        {projects?.length === 0 && (
-          <div className="col-span-full py-12 flex flex-col items-center justify-center text-center border-2 border-dashed rounded-xl bg-muted/20">
-            <div className="p-4 bg-muted rounded-full mb-4">
-              <FolderKanban className="w-8 h-8 text-muted-foreground" />
-            </div>
-            <h3 className="text-lg font-semibold mb-1">No projects yet</h3>
-            <p className="text-muted-foreground mb-4">Create your first project to get started.</p>
-            <Button variant="outline" onClick={() => setCreateOpen(true)}>
-              Create Project
-            </Button>
+    <div className="h-full overflow-y-auto p-8 max-w-7xl mx-auto">
+      <div className="flex flex-col gap-8">
+        {/* Workspace Header */}
+        <div className="flex items-start justify-between border-b pb-6">
+          <div className="space-y-1">
+            <h1 className="text-3xl font-bold tracking-tight font-display">{workspace.name}</h1>
+            <p className="text-muted-foreground text-lg max-w-2xl">{workspace.description}</p>
           </div>
-        )}
+          <Button variant="outline" size="icon">
+            <Settings className="h-4 w-4" />
+          </Button>
+        </div>
+
+        {/* Projects Section */}
+        <div>
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-xl font-semibold tracking-tight">Projects</h2>
+            <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+              <DialogTrigger asChild>
+                <Button>
+                  <Plus className="mr-2 h-4 w-4" />
+                  New Project
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Create Project</DialogTitle>
+                  <DialogDescription>
+                    Add a new project to {workspace.name}.
+                  </DialogDescription>
+                </DialogHeader>
+                <Form {...form}>
+                  <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+                    <FormField
+                      control={form.control}
+                      name="name"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Name</FormLabel>
+                          <FormControl>
+                            <Input placeholder="Project Name" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="description"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Description</FormLabel>
+                          <FormControl>
+                            <Textarea placeholder="Describe the project goal..." {...field} value={field.value || ""} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <DialogFooter>
+                      <Button type="submit" disabled={isCreating}>
+                        {isCreating ? "Creating..." : "Create Project"}
+                      </Button>
+                    </DialogFooter>
+                  </form>
+                </Form>
+              </DialogContent>
+            </Dialog>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {projectsLoading ? (
+              Array(3).fill(0).map((_, i) => (
+                <Skeleton key={i} className="h-48 rounded-xl" />
+              ))
+            ) : (
+              projects?.map((project) => (
+                <Link key={project.id} href={`/workspace/${workspace.id}/project/${project.id}`}>
+                  <Card className="h-full hover:shadow-lg transition-all cursor-pointer group border-muted hover:border-primary/50 flex flex-col justify-between">
+                    <CardHeader>
+                      <div className="h-10 w-10 rounded-lg bg-indigo-50 dark:bg-indigo-950/30 text-indigo-600 dark:text-indigo-400 flex items-center justify-center mb-4">
+                        <KanbanSquare className="h-6 w-6" />
+                      </div>
+                      <CardTitle className="text-lg">{project.name}</CardTitle>
+                      <CardDescription className="line-clamp-2 mt-1">
+                        {project.description || "No description provided."}
+                      </CardDescription>
+                    </CardHeader>
+                    <CardFooter className="pt-0">
+                      <div className="text-sm font-medium text-primary flex items-center group-hover:underline">
+                        View Board <ArrowRight className="ml-1 h-4 w-4" />
+                      </div>
+                    </CardFooter>
+                  </Card>
+                </Link>
+              ))
+            )}
+            
+            {!projectsLoading && projects?.length === 0 && (
+              <div className="col-span-full py-16 flex flex-col items-center justify-center text-center border-2 border-dashed rounded-xl bg-muted/10">
+                <div className="h-12 w-12 rounded-full bg-muted flex items-center justify-center mb-4">
+                  <KanbanSquare className="h-6 w-6 text-muted-foreground" />
+                </div>
+                <h3 className="font-semibold text-lg mb-2">No projects yet</h3>
+                <p className="text-muted-foreground max-w-sm mb-6">
+                  Get started by creating your first project in this workspace.
+                </p>
+                <Button variant="secondary" onClick={() => setCreateOpen(true)}>Create Project</Button>
+              </div>
+            )}
+          </div>
+        </div>
       </div>
     </div>
   );
